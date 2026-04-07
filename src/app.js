@@ -22,6 +22,7 @@ app.use(express.urlencoded({
 app.use(cookieParser());
 
 import userRouting from "./router/user.router.js";
+import videoRouting from "./router/video.router.js"
 app.use("/api/v1/user",userRouting);
-
+app.use("/api/v1/video",videoRouting);
 export {app};
