@@ -4,6 +4,8 @@ import { apiError } from "../utils/apiError.js";
 import { mediaUpload } from "../utils/cloudinary.js";
 import { apiResponse } from "../utils/apiResponse.js";
 import jwt from "jsonwebtoken"
+import { Video } from "../model/video.model.js";
+import mongoose from "mongoose";
 
 const registerUser = asyncHandler(async (req,res)=>{
     //destructuring request
@@ -20,7 +22,7 @@ const registerUser = asyncHandler(async (req,res)=>{
             $or:[{email},{username}]
         }
     );
-    if(alreadyUserExist) return apiError(409,"user already exist with provided values");
+    if(alreadyUserExist) return new apiError(409,"user already exist with provided values");
     
     //uploading avatar
     const avatarLocalPath = req.file?.path;
@@ -58,13 +60,13 @@ const generateAccessAndRefreshToken = (user)=>{
 }
 
 const loginUser = asyncHandler(async(req,res)=>{
+    
     const {username,password} = req.body;
     const user = await User.findOne({username: username?.toLowerCase()}).select("+password");
     if(!user) throw new apiError(404,"user not found");
-
     //validate password
     const isPasswordValid = await user.isPasswordCorrect(password);
-    if(!isPasswordValid) throw new apiError("404","invalid credentials");
+    if(!isPasswordValid) throw new apiError(404,"invalid credentials");
 
     //generating tokens
     const {refreshToken,accessToken} = generateAccessAndRefreshToken(user);
@@ -135,12 +137,12 @@ const accessTokenGenerationAfterExpiry = asyncHandler(async(req,res)=>{
 
 const channelFunction = asyncHandler(async(req,res)=>{
     try {
-        const clickedChannel = req.params?.username;//some user might have clicked then i need the name of the channel
+        const requestedChannel = req.params?.username;//some user might have clicked then i need the name of the channel
         const channelDetails = await User.aggregate(
         [
             {
                 $match:{
-                    username: clickedChannel
+                    username: requestedChannel
                 }
             },
             {
@@ -231,13 +233,50 @@ const userWatchHistory = asyncHandler(async(req,res)=>{
                 ]
             }
         }
-    ])
+    ]);
+
+    res.status(200).json(200,userWatchHistory,"watchHistory sent by server")
 })
 
 const getCurrentUser = asyncHandler(async(req,res)=>{
+    console.log("requested current user details ...")
    res.status(200)
    .json(new apiResponse(200,req.user,"user details sent"))
 })
+
+const getUserVideos = asyncHandler(async(req,res)=>{
+  
+     const id = req.user._id;
+     
+     if(!id) throw new apiError(400,"Bad request")
+    const videos = await User.aggregate([
+        {
+            $match: {
+             _id: new mongoose.Types.ObjectId(id)   
+            }
+        },
+        {
+          $lookup:{
+                from: "videos",
+                localField: "_id",
+                foreignField: "owner",
+                as: "uploadedVideoList",
+                pipeline:[
+                    {
+                        $project:{
+                            thumbnail:1,
+                            title:1,
+                            views:1
+                        }
+                    }
+                ]
+          }
+        }
+    ]);
+
+    res.status(200).json(new apiResponse(200,videos,"video list sent successfully"))
+})
+
 
 export {
 registerUser,
@@ -246,5 +285,6 @@ logoutUser,
 accessTokenGenerationAfterExpiry,
 channelFunction,
 userWatchHistory,
-getCurrentUser
+getCurrentUser,
+getUserVideos
 }

@@ -1,8 +1,9 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import {Video} from "../model/video.model.js"
-import { apiResponse } from "../utils/apiResponse";
+import { apiResponse } from "../utils/apiResponse.js";
 import { apiError } from "../utils/apiError.js";
 import { mediaUpload } from "../utils/cloudinary.js";
+import mongoose from "mongoose";
  
 const Feed = asyncHandler(async(req,res)=>{
   const videos =  await Video.aggregate([
@@ -32,11 +33,12 @@ const Feed = asyncHandler(async(req,res)=>{
     }
   ]);
 
-  res.status(200).json(apiResponse(200,videos,"feed sent successfully"))
+  res.status(200).json(new apiResponse(200,videos,"feed sent successfully"))
 });
 
 const uploadVideo = asyncHandler(async(req,res)=>{
     try {
+        console.log("user is requesting to upload a video file")
         const videoPath = req.files?.video[0]?.path;
         const thumbnail = req.files?.thumbnail[0]?.path;
         const {title,duration} = req.body;
@@ -54,6 +56,7 @@ const uploadVideo = asyncHandler(async(req,res)=>{
         
         const video = await Video.create({
             videoFile: videoUrl,
+            owner: req.user._id,
             thumbnail:thumbnailUrl,
             title,
             duration
@@ -74,11 +77,47 @@ const deleteVideo = asyncHandler(async(req,res)=>{
 })
 
 const getVideo = asyncHandler(async(req,res)=>{
-    const videoId = req.params;
-    if(!videoId) throw new apiError(400,"Bad request");
-    const video = await Video.findById(videoId);
+    const {id} = req.params
+    if(!id) throw new apiError(400,"Bad request");
+    const video = await Video.aggregate([
+        {
+            $match:{
+                _id : new mongoose.Types.ObjectId(id)
+            }
+        },
+        {
+            $lookup:{
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "ownerDetails",
+                pipeline:[
+                    {
+                        //i am at user's document
+                       $lookup:{
+                        from: "subscriptions",
+                        localField: "_id",
+                        foreignField: "channel",
+                        as: "subscribersList",
+                       }
+                    },
+                    {
+                        $addFields:{
+                           subsCount:{$size:"$subscribersList"}
+                        }
+                    },
+                    {
+                        $project:{
+                            username:1,
+                            avatar:1,
+                            subsCount:1
+                        }
+                    }
+                ]
+            }
+        },
+    ])
     if(!video) throw new apiError("404","no video found");
-
     res.status(200).json(new apiResponse(200,video,"video fetched successfully..."));
 })
 

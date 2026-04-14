@@ -9,14 +9,14 @@ app.use(cors({
 }));
 
 app.use(express.json({
-    limit:"16kb"
+    limit:"30kb"
 }));
 
 app.use(express.static("public"));
 
 app.use(express.urlencoded({
     extended:true,
-    limit:"16kb"
+    limit:"30kb"
 }));
 
 app.use(cookieParser());

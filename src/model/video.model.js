@@ -20,7 +20,7 @@ const videoSchema = new mongoose.Schema({
 
     title:{
         type: String,
-        required: unique
+        required: true
     },
 
     duration:{

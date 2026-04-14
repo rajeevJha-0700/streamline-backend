@@ -16,6 +16,7 @@ const mediaUpload = async function(localFilePath){ //localFilePath shall be prov
         });
         console.log("file uploaded sucessfully");
         fs.unlinkSync(localFilePath);
+        console.log("unlinked the file successfully")
         return result.secure_url;
     } catch (error) {
       fs.unlinkSync(localFilePath); //remove temporarily stored media from my disc

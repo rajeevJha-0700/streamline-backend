@@ -37,6 +37,13 @@ const userSchema = new mongoose.Schema({
         ref:"Video"
     }],
 
+    subscribedChannelList:[
+        {
+            type:mongoose.Schema.Types.ObjectId,
+            ref: "Subscription"
+        }
+    ],
+
     password:{
         type: String,
         select: false,
